@@ -4,28 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Cerraduras</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .mensajes{
+            padding: 10px;
+        }
+
+        
+    </style>
 </head>
 <body>
-    <h1>Interfaz de Control de Cerraduras RS485</h1>
-    
-    <div>
-        <h2>Abrir Cerradura</h2>
-        <button id="openLockBtn">Abrir Cerradura del Puerto 1</button>
+    <h1>Control de Cerraduras</h1>
+    <button id="abrirCerraduraBtn">Abrir Cerradura</button>
+    <button id="getEstadoBtn">Obtener Estado</button>
+    <div class="mensajes">
+        <div id="response"></div>
+        <div id="RX"></div>
     </div>
 
-    <div id="response"></div>
-
-    <script>
-        document.getElementById('openLockBtn').addEventListener('click', async () => {
-            const response = await fetch('/open-lock', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            const result = await response.json();
-            document.getElementById('response').innerText = JSON.stringify(result);
-        });
+    <script src="script.js">
+        
     </script>
 </body>
 </html>
