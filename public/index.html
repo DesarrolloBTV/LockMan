@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Cerraduras</title>
+</head>
+<body>
+    <h1>Interfaz de Control de Cerraduras RS485</h1>
+    
+    <div>
+        <h2>Abrir Cerradura</h2>
+        <button id="openLockBtn">Abrir Cerradura del Puerto 1</button>
+    </div>
+
+    <div id="response"></div>
+
+    <script>
+        document.getElementById('openLockBtn').addEventListener('click', async () => {
+            const response = await fetch('/open-lock', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            const result = await response.json();
+            document.getElementById('response').innerText = JSON.stringify(result);
+        });
+    </script>
+</body>
+</html>

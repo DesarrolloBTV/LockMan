@@ -1,212 +1,125 @@
 const express = require('express');
-const { SerialPort, ReadlineParser } = require('serialport');
+const { SerialPort } = require('serialport'); // Cambiado aquí
+const { ReadlineParser } = require('@serialport/parser-readline'); // Cambiado aquí
+
+// Configurar Express
 const app = express();
-const portHttp = 3000;  // Puerto HTTP para Express
+const PORT = 3000;
 
-// Configuración del puerto RS485
-const portSerial = new SerialPort({
-    path: 'COM3',  // Cambia 'COM3' por el puerto adecuado en tu sistema Windows
-    baudRate: 115200,
-    dataBits: 8,
-    parity: 'none',
-    stopBits: 1,
-    autoOpen: false
+// Middleware para analizar el cuerpo de las solicitudes JSON
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public')); // Para servir archivos estáticos
+
+// Configura la conexión del puerto serie
+const port = new SerialPort({
+  path: 'COM3', // Cambia esto a tu puerto COM
+  baudRate: 19200, // Asegúrate de que este valor coincida con el de la placa
 });
 
-// Configuración del parser para leer las respuestas del puerto serial
-const parser = portSerial.pipe(new ReadlineParser({ delimiter: '\n' }));
+// Crea un parser para leer los datos entrantes
+const parser = port.pipe(new ReadlineParser({ delimiter: '\n' })); // Cambiado aquí
 
-// Variable para almacenar el callback y manejar la respuesta
-let responseCallback = null;
-
-// Función para calcular el byte de suma (checksum)
-function calcularSuma(comando) {
-    return comando.reduce((acc, val) => acc + val, 0) & 0xFF;
+// Función para calcular la suma de verificación (checksum)
+function calculateChecksum(data) {
+  return data.reduce((sum, byte) => sum + byte, 0) & 0xFF; // Sumar bytes y enmascarar con 0xFF
 }
 
-// Función para construir y enviar el comando
-function enviarComando(addr, cmd, callback) {
-    const STX = 0x02;  // Start Code
-    const ETX = 0x03;  // End Code
-
-    // Construimos el comando (5 bytes): STX, ADDR, CMD, ETX
-    let comando = [STX, addr, cmd, ETX];
-  
-    // Calculamos el byte de suma
-    const suma = calcularSuma(comando);
-  
-    // Agregamos el byte de suma al final del comando
-    comando.push(suma);
-  
-    // Convertimos el comando a un Buffer
-    const bufferComando = Buffer.from(comando);
-
-    // Guardamos el callback para manejar la respuesta
-    responseCallback = callback;
-  
-    // Abrimos el puerto si no está abierto
-    if (!portSerial.isOpen) {
-        portSerial.open(err => {
-            if (err) {
-                return callback(`Error al abrir el puerto: ${err.message}`);
-            }
-            console.log('Puerto serial abierto.');
-            
-            // Enviar comando al abrir el puerto
-            portSerial.write(bufferComando, (err) => {
-                if (err) {
-                    return callback(`Error al enviar el comando: ${err.message}`);
-                }
-                console.log('Comando enviado:', comando);
-            });
-        });
-    } else {
-        // Enviar comando si el puerto ya está abierto
-        portSerial.write(bufferComando, (err) => {
-            if (err) {
-                return callback(`Error al enviar el comando: ${err.message}`);
-            }
-            console.log('Comando enviado:', comando);
-        });
-    }
+// Función para construir el paquete de comandos
+function buildCommandPacket(addr, cmd) {
+  const STX = 0x02; // Código de inicio
+  const ETX = 0x03; // Código de fin
+  const packet = [STX, addr, cmd, ETX];
+  const checksum = calculateChecksum(packet.slice(0, -1));
+  packet.push(checksum);
+  return Buffer.from(packet);
 }
 
-// Función para decodificar la respuesta recibida
-function decodificarRespuesta(data) {
-    const respuesta = Buffer.from(data, 'hex');
-
-    if (respuesta.length === 9 && respuesta[0] === 0x02 && respuesta[7] === 0x03) {
-        const addr = respuesta[1];
-        const cmd = respuesta[2];
-        const status = respuesta.slice(3, 7);  // STATUS son 4 bytes
-        const suma = respuesta[8];
-
-        // Verificar si la suma es válida
-        if (suma === calcularSuma(respuesta.slice(0, 8))) {
-            const puertaAbierta = status[0] === 0x01;
-            const ocupado = status[2] === 0x01;
-            return `Dirección: ${addr.toString(16)}, Comando: ${cmd.toString(16)}, Puerta Abierta: ${puertaAbierta}, Ocupado: ${ocupado}`;
-        } else {
-            return "Error: Suma inválida en la respuesta.";
-        }
-    } else {
-        return "Error: Respuesta inválida.";
-    }
+// Función para manejar los datos entrantes
+function handleIncomingData(data) {
+  console.log('Received:', data);
+  // Aquí podrías enviar la respuesta al cliente si es necesario
 }
 
-// Leer datos del puerto y decodificarlos
-parser.on('data', data => {
-    console.log('Respuesta recibida:', data);
-
-    if (responseCallback) {
-        const resultado = decodificarRespuesta(data);
-        responseCallback(null, resultado);
-        responseCallback = null;  // Limpiamos el callback después de procesar la respuesta
-    }
-});
-
-// Endpoint para abrir la puerta
-app.get('/abrir-puerta', (req, res) => {
-    const ADDR = 0x01;  // Dirección del locker
-    const CMD_OPEN_DOOR = 0x31;  // Comando para abrir la puerta
-  
-    enviarComando(ADDR, CMD_OPEN_DOOR, (err, mensaje) => {
-        if (err) {
-            return res.status(500).send(err);
-        }
-        res.send(mensaje);
+// Enviar comando a la placa
+function sendCommand(addr, cmd) {
+  const packet = buildCommandPacket(addr, cmd);
+  return new Promise((resolve, reject) => {
+    port.write(packet, (err) => {
+      if (err) {
+        console.error('Error escribiendo en el puerto:', err.message);
+        return reject(err);
+      }
+      console.log('Comando enviado:', packet);
+      resolve(packet);
     });
-});
+  });
+}
 
-// Endpoint para obtener el estado de la puerta
-app.get('/estado-puerta', (req, res) => {
-    const ADDR = 0x01;  // Dirección del locker
-    const CMD_GET_STATUS = 0x30;  // Comando para obtener el estado de la puerta
-
-    enviarComando(ADDR, CMD_GET_STATUS, (err, mensaje) => {
-        if (err) {
-            return res.status(500).send(err);
-        }
-        res.send(mensaje);
+// Enviar comando para abrir la cerradura en un puerto específico
+function sendUnlockCommand(addr) {
+  const command = 0x31;  // Comando para abrir la puerta
+  const packet = buildCommandPacket(addr, command); // Aquí se genera el paquete correcto
+  return new Promise((resolve, reject) => {
+    port.write(packet, (err) => {
+      if (err) {
+        console.error('Error escribiendo en el puerto:', err.message);
+        return reject(err);
+      }
+      console.log(`Comando enviado para abrir la puerta en placa ${addr}:`, packet);
+      resolve(packet);
     });
+  });
+}
+
+// Escuchar datos entrantes
+parser.on('data', handleIncomingData);
+
+// Ruta para abrir la puerta 1 en la placa con dirección 0
+app.post('/open-lock', async (req, res) => {
+  const addr = 0x00; // Dirección de la placa 0
+
+  try {
+    const responsePacket = await sendUnlockCommand(addr); // Envía el comando de apertura
+    res.json({ success: true, response: responsePacket });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
-// Endpoint para abrir todas las puertas
-app.get('/abrir-todas-las-puertas', (req, res) => {
-    const CMD_OPEN_DOOR = 0x31;  // Comando para abrir la puerta
-    const ADDR_BASE = 0x00;  // Dirección base, locker 0 (ajusta según tu cantidad)
+// Ruta para enviar comandos
+app.post('/send-command', async (req, res) => {
+  const { addr, cmd } = req.body;
 
-    // Función para enviar comandos secuencialmente
-    function abrirPuertasSecuencialmente(addr, callback) {
-        if (addr > 0x0F) {  // Suposición: 16 lockers (ajusta según tu cantidad)
-            return callback(null, 'Todas las puertas han sido abiertas');
-        }
-      
-        enviarComando(addr, CMD_OPEN_DOOR, (err, mensaje) => {
-            if (err) {
-                return callback(`Error al abrir la puerta en la dirección ${addr.toString(16)}: ${err}`);
-            }
-            console.log(`Puerta en la dirección ${addr.toString(16)} abierta`);
-            abrirPuertasSecuencialmente(addr + 1, callback);  // Llamada recursiva para la siguiente puerta
-        });
-    }
-
-    abrirPuertasSecuencialmente(ADDR_BASE, (err, mensajeFinal) => {
-        if (err) {
-            return res.status(500).send(err);
-        }
-        res.send(mensajeFinal);
-    });
+  try {
+    const responsePacket = await sendCommand(addr, cmd);
+    res.json({ success: true, response: responsePacket });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
-// Servir una página HTML para interactuar con los endpoints
-app.get('/', (req, res) => {
-    res.send(`
-        <h1>Control de Locker</h1>
-        <button onclick="abrirPuerta()">Abrir Puerta</button>
-        <button onclick="estadoPuerta()">Estado de Puerta</button>
-        <button onclick="abrirTodasLasPuertas()">Abrir Todas las Puertas</button>
-        <div id="resultado"></div>
-
-        <script>
-            function abrirPuerta() {
-                fetch('/abrir-puerta')
-                    .then(response => response.text())
-                    .then(data => document.getElementById('resultado').innerText = data);
-            }
-
-            function estadoPuerta() {
-                fetch('/estado-puerta')
-                    .then(response => response.text())
-                    .then(data => document.getElementById('resultado').innerText = data);
-            }
-
-            function abrirTodasLasPuertas() {
-                fetch('/abrir-todas-las-puertas')
-                    .then(response => response.text())
-                    .then(data => document.getElementById('resultado').innerText = data);
-            }
-        </script>
-    `);
+// Ruta para obtener el estado de una sola placa CU
+app.post('/get-status', async (req, res) => {
+  try {
+    const responsePacket = await sendCommand(0x00, 0x30); // Solicitar estado del candado
+    res.json({ success: true, response: responsePacket });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
-// Iniciar el servidor en el puerto 3000
-app.listen(portHttp, () => {
-    console.log(`Servidor Express escuchando en http://localhost:${portHttp}`);
+// Manejar errores al abrir el puerto
+port.on('open', () => {
+  console.log('Puerto serie abierto');
 });
 
-// Cerrar el puerto serial al salir
-process.on('SIGINT', () => {
-    if (portSerial.isOpen) {
-        portSerial.close(err => {
-            if (err) {
-                console.error('Error al cerrar el puerto serial:', err.message);
-            } else {
-                console.log('Puerto serial cerrado.');
-            }
-            process.exit();
-        });
-    } else {
-        process.exit();
-    }
+// Manejar errores del puerto
+port.on('error', (err) => {
+  console.error('Error:', err.message);
+});
+
+// Iniciar el servidor
+app.listen(PORT, () => {
+  console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
