@@ -1,3 +1,11 @@
+/** 
+ * 0x30 GET Status CU Board: 02 00 30 03 35
+ * 0x31 Unlock lock 1 on CU 0: 02 00 31 03 36
+ * 0x32 Status del bus entero, para todas las placas: 02 F0 32 03 27
+ * 0x35 Estado puerta
+*/
+
+
 const express = require('express');
 const { SerialPort } = require('serialport');
 const { ReadlineParser } = require('@serialport/parser-readline');
@@ -46,25 +54,70 @@ function crearPaqueteComando(addr, cmd) {
   return Buffer.from(packet);
 }
 
+function crearPaqueteComandoInicializacion(addr, cmd, addrnw) {
+  const STX = 0x02; // Código de inicio
+  const ETX = 0x03; // Código de fin
+  // Inicializar el paquete con STX, dirección, comando y tres ceros adicionales
+  const packet = [STX, addr, cmd, addrnw, 0x00, 0x00, 0x00, ETX]; // Agregamos ceros adicionales según la estructura del comando
+  // Calcular el checksum sobre el paquete sin incluir ETX
+  const checksum = calcularSUM(packet);
+  // Agregar ETX y checksum al paquete
+  packet.push(checksum); // Agregamos el ETX y el checksum al final
+
+  return Buffer.from(packet); // Convertimos el paquete a un buffer antes de devolverlo
+}
+
 // Función para esperar la respuesta del puerto serie
 function esperarRespuesta() {
   return new Promise((resolve, reject) => {
+    let datosRecibidos = false; // Indicador de si se recibieron datos
     const timeout = setTimeout(() => {
-      reject('Tiempo de espera agotado para recibir datos.');
-    }, 7000); // Esperar un máximo de 5 segundos
+      if (!datosRecibidos) {
+        resolve('Sin Respuesta'); // Retorna "Sin Respuesta" si no se recibieron datos
+      }
+    }, 6000); // Esperar un máximo de 7 segundos
 
     port.on('data', (data) => {
+      datosRecibidos = true; // Indica que se han recibido datos
       const receivedData = Array.from(data);
-      ultimoDatoRecibido = receivedData.map(byte => byte.toString(16).padStart(2, '0')).join(' ');
+      const ultimoDatoRecibido = receivedData.map(byte => byte.toString(16).padStart(2, '0')).join(' ');
       clearTimeout(timeout); // Limpia el timeout si se reciben datos
       resolve(ultimoDatoRecibido);
     });
   });
 }
+function esperarMultiplesRespuestas() {
+  return new Promise((resolve, reject) => {
+    let datosRecibidos = false; // Indicador de si se recibieron datos
+    const respuestas = []; // Arreglo para almacenar múltiples respuestas
+    const timeout = setTimeout(() => {
+      if (!datosRecibidos) {
+        resolve('Sin Respuesta'); // Retorna "Sin Respuesta" si no se recibieron datos
+      } else {
+        resolve(respuestas.join('\n')); // Devuelve todas las respuestas recibidas
+      }
+    }, 3000); // Esperar un máximo de 10 segundos para todas las respuestas
+
+    port.on('data', (data) => {
+      datosRecibidos = true; // Indica que se han recibido datos
+      const receivedData = Array.from(data);
+      const respuestaFormateada = receivedData.map(byte => byte.toString(16).padStart(2, '0')).join(' ');
+      respuestas.push(respuestaFormateada); // Almacena cada respuesta en el array
+    });
+  });
+}
 
 // Enviar comando a la placa
-function enviarComando(addr, cmd) {
-  const packet = crearPaqueteComando(addr, cmd);
+function enviarComando(addr, cmd, addrnw) {
+  let packet;
+  const addrHex = parseInt(addr, 10); // Convertir a número si no lo es
+  console.log(addrHex)
+  if(cmd == "0x80" || cmd == "0x81"){
+    packet = crearPaqueteComandoInicializacion(addrHex, cmd, addrnw);
+
+  }else{
+    packet = crearPaqueteComando(addrHex, cmd);
+  }
   return new Promise((resolve, reject) => {
     port.write(packet, (err) => {
       if (err) {
@@ -79,28 +132,11 @@ function enviarComando(addr, cmd) {
   });
 }
 
-// Enviar comando para abrir la cerradura en un puerto específico
-function abrirCerradura(addr) {
-  const command = 0x31;  
-  const packet = crearPaqueteComando(addr, command); 
-  return new Promise((resolve, reject) => {
-    port.write(packet, (err) => {
-      if (err) {
-        console.error('Error escribiendo en el puerto:', err.message);
-        return reject(err);
-      }
-      const hexString = packet.toString('hex').replace(/(.{2})/g, '$1 '); // Añadir espacio
-      console.log('Comando enviado:', hexString.trim()); // Trim para quitar el espacio final
-      resolve(hexString.trim()); // Devolver el string formateado
-    });
-  });
-}
-
 // Ruta para abrir la puerta 1 en la placa con dirección 0
 app.post('/abrir-cerradura', async (req, res) => {
 
   try {
-    const datosEnviados = await enviarComando(0x00, 0x31);
+    const datosEnviados = await enviarComando(0x10, 0x31, 0x00);//
     const datosRecibidos = await esperarRespuesta(); // Espera la respuesta del puerto
     res.json({ success: true, response: datosRecibidos, enviado:datosEnviados });
   } catch (error) {
@@ -108,29 +144,218 @@ app.post('/abrir-cerradura', async (req, res) => {
   }
 });
 
-// Ruta para enviar comandos
 app.post('/enviar-comando', async (req, res) => {
-  const { addr, cmd } = req.body;
-
+  let { comando,direccion } = req.body;
+  // Si el comando viene como string hexadecimal, conviértelo a número
+  if (comando.startsWith('0x')) {
+      comando = parseInt(comando, 16); // Convertir el comando ingresado de string a hexadecimal
+  }
+  if (direccion.startsWith('0x')) {
+    direccion = parseInt(direccion, 16); // Convertir el comando ingresado de string a hexadecimal
+}
   try {
-    const datosEnviados = await enviarComando(addr, cmd);
-    const datosRecibidos = await esperarRespuesta(); // Espera la respuesta del puerto
-    res.json({ success: true, response: datosRecibidos, enviado: datosEnviados });
+      const datosEnviados = await enviarComando(direccion, comando,0x00); // Enviar el comando ingresado
+      const datosRecibidos = await esperarRespuesta(); // Esperar respuesta del puerto serie
+      res.json({ success: true, response: datosRecibidos, enviado: datosEnviados });
   } catch (error) {
-    res.json({ success: false, error: error.message });
+      res.json({ success: false, error: error.message });
   }
 });
 
 // Ruta para obtener el estado de una sola placa CU
 app.post('/get-estado', async (req, res) => {
   try {
-    const comandoEnviado = await enviarComando(0x00, 0x30);
+    const comandoEnviado = await enviarComando(0x00, 0x30,0x00);
     const datosRecibidos = await esperarRespuesta(); // Espera la respuesta del puerto
     res.json({ success: true, response: datosRecibidos, enviado: comandoEnviado });
   } catch (error) {
     res.json({ success: false, error: error.message });
   }
 });
+
+// Ruta para obtener el estado de una sola placa CU
+app.post('/get-estado-bus', async (req, res) => {
+  try {
+    const comandoEnviado = await enviarComando(0xf0, 0x32, 0x00); // Envía el comando para el estado del bus completo
+    const datosRecibidos = await esperarMultiplesRespuestas(); // Espera múltiples respuestas
+    res.json({ success: true, response: datosRecibidos, enviado: comandoEnviado });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
+});
+
+app.post('/iniciar-reclutamiento', async (req, res) => {
+  try {
+    const comandoEnviado = await enviarComando(0xFF, 0x80, 0x00); // Usar dirección 0xFF como broadcast
+    const datosRecibidos = await esperarRespuesta(); // Esperar respuesta del puerto
+    res.json({ success: true, response: datosRecibidos, enviado: comandoEnviado });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// Ejemplo para manejar el comando 0x81 (configurar nueva dirección)
+app.post('/configurar-nueva-direccion', async (req, res) => {
+  const { nuevaDireccion, antiguaDireccion } = req.body;
+
+  if (!nuevaDireccion) {
+    return res.status(400).json({ success: false, error: 'Falta la nueva dirección' });
+  }
+  const direccionAntigua = parseInt(antiguaDireccion)
+  const direccionNueva = parseInt(nuevaDireccion)
+  try {
+    const comandoEnviado = await enviarComando(direccionAntigua, 0x81, direccionNueva);
+    const datosRecibidos = await esperarRespuesta(); // Esperar respuesta del puerto
+    res.json({ success: true, response: datosRecibidos, enviado: comandoEnviado });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
+});
+
+app.post('/inicializacion-automatica', async (req, res) => {
+  try {
+    // 1. Iniciar el proceso de reclutamiento
+    const comandoEnviado = await enviarComando(0xFF, 0x80, 0x00); // Usar dirección 0xFF como broadcast
+    console.log("Proceso de reclutamiento iniciado, todas las puertas abiertas.");
+    await delay(2000);
+
+    const cerradurasAsignadas = [];
+    let timeoutGlobal = 20000; // 20 segundos de tiempo límite global para finalizar el proceso si no se detecta el cierre de puertas
+    let tiempoInicioProceso = Date.now(); // Tiempo de inicio del proceso
+    let procesoTerminado = false;
+
+    // 2. Iniciar el bucle para verificar el estado de las cerraduras
+    while (cerradurasAsignadas.length < 254 && !procesoTerminado) { // Hasta un máximo de 254 cerraduras
+      
+      // 3. Verificar si el tiempo global de espera ha superado el timeout global
+      if (Date.now() - tiempoInicioProceso > timeoutGlobal) {
+        console.log("Tiempo global de espera superado, finalizando proceso.");
+        procesoTerminado = true;
+        break;
+      }
+
+      let puertaCerradaDetectada = false; // Esta variable se usará para detectar si se cierra una puerta
+
+      // 4. Verificar el estado de cada cerradura no asignada
+      for (let i = 0; i < 254 && !procesoTerminado; i++) { 
+        // Solo verificar cerraduras que no hayan sido asignadas
+        if (!cerradurasAsignadas.includes(i)) {
+          let tiempoInicioVerificacion = Date.now(); // Tiempo para cada cerradura individual
+
+          // 5. Verificar el estado de una cerradura hasta que se cierre o se alcance el timeout global
+          while (!puertaCerradaDetectada && !procesoTerminado) {
+            // Verificar si se ha excedido el tiempo límite global
+            if (Date.now() - tiempoInicioProceso > timeoutGlobal) {
+              console.log(`Tiempo global de espera superado, finalizando proceso.`);
+              procesoTerminado = true;
+              break;
+            }
+
+            // 6. Enviar comando para obtener el estado de la cerradura
+            await delay(2000); // Espera para evitar sobrecargar el sistema
+            const estadoPuerta = await enviarComando(i, 0x30); // Enviar comando para obtener el estado
+            const respuestaEstado = await esperarRespuesta();
+            const estadoHexArray = respuestaEstado.trim().split(' '); // Convertir la respuesta en un array
+            console.log(`Verificando cerradura ${i}, respuesta: ${respuestaEstado}`);
+
+            // 7. Verificar si la cerradura está cerrada (el cuarto byte debe ser '01')
+            if (estadoHexArray[3] === '01') {
+              puertaCerradaDetectada = true;
+              await delay(2000);
+              tiempoInicioProceso = Date.now();  // Reiniciar el contador global
+              const direccionActual = cerradurasAsignadas.length; // Dirección a asignar
+              // 8. Enviar comando para establecer nueva dirección
+              await enviarComando(i, 0x81, direccionActual); // Asignar la nueva dirección
+              cerradurasAsignadas.push(i); // Guardar la dirección de la cerradura asignada
+              console.log(`Cerradura en dirección 0x${i.toString(16).padStart(2, '0')} asignada a 0x${direccionActual.toString(16).padStart(2, '0')}`);
+              break; // Salir de la espera por esta cerradura
+            } else {
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar un segundo antes de verificar nuevamente
+            }
+          }
+        }
+      }
+    }
+
+    // Verifica si el proceso terminó por timeout o por completarse normalmente
+    if (procesoTerminado) {
+      res.json({ success: true, message: 'Proceso de reclutamiento finalizado por timeout', cerraduras: cerradurasAsignadas });
+    } else {
+      res.json({ success: true, message: 'Proceso de reclutamiento completado', cerraduras: cerradurasAsignadas });
+    }
+  } catch (error) {
+    console.error("Error en el proceso de reclutamiento:", error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
+
+
+app.post('/detectar-cus', async (req, res) => {
+
+  let cerraduras = await detectarPlacasConectadas()
+  res.json({ success: true, message: `CUs detectadas:${cerraduras}`});
+
+})
+
+async function detectarPlacasConectadas() {
+  const direccionComando = 0xF0;
+  const comandoPlacas = 0x32;
+  let placasConectadas = [];
+
+  try {
+    // 1. Enviar el comando para detectar placas CU conectadas
+    await enviarComando(direccionComando, comandoPlacas, 0x00);
+
+    let seguirEsperando = true;
+
+    // 2. Comenzamos a recibir respuestas hasta que no haya más respuestas válidas
+    while (seguirEsperando) {
+      try {
+        const respuesta = await esperarRespuesta(); // Ejemplo: "02 00 36 00 00 00 00 03 3b\n02 10 36 00 00 00 00 03 4b"
+        // Manejo de respuesta "Sin Respuesta"
+        if (respuesta === "Sin Respuesta") {
+          seguirEsperando = false; // Detener el bucle si se recibe "Sin Respuesta"
+          break; // Continuar al siguiente ciclo del bucle
+        }
+        if (respuesta) {
+          // Separar las respuestas en base a nuevas líneas
+          const respuestasArray = respuesta.trim().split('\n');
+          // Procesar cada respuesta individualmente
+          respuestasArray.forEach(res => {
+            const respuestaHexArray = res.trim().split(' ');
+            // Validamos si la respuesta tiene al menos 8 bytes (longitud mínima esperada)
+            
+            if (respuestaHexArray.length >= 8) {
+              const direccionPlaca = respuestaHexArray[1]; // El segundo byte es la dirección de la placa CU
+              // Comprobamos si esta dirección ya está registrada
+              if (!placasConectadas.includes(direccionPlaca)) {
+                placasConectadas.push(direccionPlaca); // Añadir la dirección de la placa detectada
+                console.log(`Placa CU detectada en dirección: 0x${direccionPlaca.toString(16).padStart(2, '0')}`);
+              }
+            }
+          });
+        } else {
+          // Si no hay más respuestas, detener la detección
+          seguirEsperando = false;
+        }
+      } catch (error) {
+        console.log("Error al intentar obtener respuesta de la placa CU:", error.message);
+        seguirEsperando = false; // Si hay un error en la respuesta, paramos el bucle
+      }
+    }
+    return placasConectadas
+  } catch (error) {
+    console.log("Error al enviar el comando para detectar placas CU:", error.message);
+    return [];
+  }
+}
+
+async function delay(ms) {
+  return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+  });
+}
 
 // Escuchar datos entrantes
 port.on('data', (data) => {

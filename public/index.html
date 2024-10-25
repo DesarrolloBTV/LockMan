@@ -3,30 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control de Cerraduras</title>
+    <title>LockMan</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
         }
-        .mensajes{
+        .mensajes {
             padding: 10px;
         }
-
-        
+        input[type="text"] {
+            padding: 5px;
+            margin-right: 10px;
+            width: 300px;
+            height: 25px;
+        }
+        button {
+            padding: 5px 10px;
+            margin-right: 10px;
+        }
+        label{
+            font-size: 15px;
+        }
     </style>
 </head>
 <body>
-    <h1>Control de Cerraduras</h1>
+    <h1>Control LockMan</h1>
+    <label for="">Ingresar direccion para enviar comando o nueva direccion para cambio de direccion: </label><br><br>
+    <input type="text" id="direccionInput" placeholder="Ingrese la nueva direccion (ej. 0x00)"><br><br>
+    <label for="">Ingresar direccion antigua: </label><br><br>
+    <input type="text" id="direccionAnteriorInput" placeholder="Ingrese la direccion anterior (ej. 0x00)"><br><br>
+    <label for="">Ingresar comando: </label><br><br>
+    <input type="text" id="comandoInput" placeholder="Ingrese comando (ej. 0x30)"><br><br><br>
+
+    <button id="enviarComandoBtn">Enviar Comando</button>
+    <!-- Botones para iniciar el reclutamiento y configurar nueva dirección -->
+    <button id="iniciarReclutamientoBtn">Iniciar Reclutamiento</button><br><br>
+    <button id="configurarDireccionBtn">Configurar Nueva Dirección Manual</button>
+    <button id="detectarCerradurasBtn">Detectar CUs</button><br><br>
+    <button id="inicializacionBtn">Inicializar CUs</button>
+
+
+    <!--  
     <button id="abrirCerraduraBtn">Abrir Cerradura</button>
     <button id="getEstadoBtn">Obtener Estado</button>
+    <button id="getEstadoBusBtn">Obtener Estado Bus</button>
+    -->
     <div class="mensajes">
         <div id="response"></div>
         <div id="RX"></div>
     </div>
-
-    <script src="script.js">
-        
-    </script>
+    <div class="info">
+        <p id="mensaje-info"></p>
+    </div>
+    <script src="script.js"></script>
 </body>
 </html>
