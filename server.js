@@ -23,7 +23,7 @@ app.use(express.static('public'));
 // Configura la conexión del puerto serie
 const port = new SerialPort({
   path: 'COM3', // Cambia esto a tu puerto COM
-  baudRate: 19200,
+  baudRate: 115200,
 });
 
 // Crea un parser para leer los datos entrantes
@@ -96,7 +96,7 @@ function esperarMultiplesRespuestas() {
       } else {
         resolve(respuestas.join('\n')); // Devuelve todas las respuestas recibidas
       }
-    }, 3000); // Esperar un máximo de 10 segundos para todas las respuestas
+    }, 10000); // Esperar un máximo de 10 segundos para todas las respuestas
 
     port.on('data', (data) => {
       datosRecibidos = true; // Indica que se han recibido datos
@@ -155,7 +155,7 @@ app.post('/enviar-comando', async (req, res) => {
 }
   try {
       const datosEnviados = await enviarComando(direccion, comando,0x00); // Enviar el comando ingresado
-      const datosRecibidos = await esperarRespuesta(); // Esperar respuesta del puerto serie
+      const datosRecibidos = await esperarMultiplesRespuestas(); // Esperar respuesta del puerto serie
       res.json({ success: true, response: datosRecibidos, enviado: datosEnviados });
   } catch (error) {
       res.json({ success: false, error: error.message });
@@ -220,19 +220,12 @@ app.post('/inicializacion-automatica', async (req, res) => {
     await delay(2000);
 
     const cerradurasAsignadas = [];
-    let timeoutGlobal = 20000; // 20 segundos de tiempo límite global para finalizar el proceso si no se detecta el cierre de puertas
+    let timeoutGlobal = 60000; // 20 segundos de tiempo límite global para finalizar el proceso si no se detecta el cierre de puertas
     let tiempoInicioProceso = Date.now(); // Tiempo de inicio del proceso
     let procesoTerminado = false;
 
     // 2. Iniciar el bucle para verificar el estado de las cerraduras
     while (cerradurasAsignadas.length < 254 && !procesoTerminado) { // Hasta un máximo de 254 cerraduras
-      
-      // 3. Verificar si el tiempo global de espera ha superado el timeout global
-      if (Date.now() - tiempoInicioProceso > timeoutGlobal) {
-        console.log("Tiempo global de espera superado, finalizando proceso.");
-        procesoTerminado = true;
-        break;
-      }
 
       let puertaCerradaDetectada = false; // Esta variable se usará para detectar si se cierra una puerta
 
@@ -247,27 +240,31 @@ app.post('/inicializacion-automatica', async (req, res) => {
             // Verificar si se ha excedido el tiempo límite global
             if (Date.now() - tiempoInicioProceso > timeoutGlobal) {
               console.log(`Tiempo global de espera superado, finalizando proceso.`);
+              await reiniciarPuertoSerie()
               procesoTerminado = true;
               break;
             }
 
             // 6. Enviar comando para obtener el estado de la cerradura
-            await delay(2000); // Espera para evitar sobrecargar el sistema
-            const estadoPuerta = await enviarComando(i, 0x30); // Enviar comando para obtener el estado
+            await delay(1000); // Espera para evitar sobrecargar el sistema
+            const estadoPuerta = await enviarComando(0x00, 0x30); // Enviar comando para obtener el estado
             const respuestaEstado = await esperarRespuesta();
             const estadoHexArray = respuestaEstado.trim().split(' '); // Convertir la respuesta en un array
-            console.log(`Verificando cerradura ${i}, respuesta: ${respuestaEstado}`);
+            console.log(`Verificando cerradura 0x00, respuesta: ${respuestaEstado}`);
 
             // 7. Verificar si la cerradura está cerrada (el cuarto byte debe ser '01')
-            if (estadoHexArray[3] === '01') {
+            if (estadoHexArray[3] === '00') {
               puertaCerradaDetectada = true;
-              await delay(2000);
+              await delay(1000);
               tiempoInicioProceso = Date.now();  // Reiniciar el contador global
-              const direccionActual = cerradurasAsignadas.length; // Dirección a asignar
+              const direccionActual = cerradurasAsignadas.length + 1; // Dirección a asignar
               // 8. Enviar comando para establecer nueva dirección
-              await enviarComando(i, 0x81, direccionActual); // Asignar la nueva dirección
-              cerradurasAsignadas.push(i); // Guardar la dirección de la cerradura asignada
-              console.log(`Cerradura en dirección 0x${i.toString(16).padStart(2, '0')} asignada a 0x${direccionActual.toString(16).padStart(2, '0')}`);
+              let comandoEnviado = await enviarComando(i, 0x81, direccionActual); // Asignar la nueva dirección
+              cerradurasAsignadas.push(direccionActual); // Guardar la dirección de la cerradura asignada
+              console.log(`Cerradura en dirección 0x00 asignada a 0x${direccionActual.toString(16).padStart(2, '0')}`);
+              await delay(1000)
+              await enviarComando(direccionActual, 0x31); 
+              console.log(`Abriendo puerta asignada 0x${direccionActual.toString(16).padStart(2,'0')}`)
               break; // Salir de la espera por esta cerradura
             } else {
               await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar un segundo antes de verificar nuevamente
@@ -276,7 +273,11 @@ app.post('/inicializacion-automatica', async (req, res) => {
         }
       }
     }
-
+    for (const direccion of cerradurasAsignadas) {
+      await enviarComando(direccion, 0x31); // Comando de apertura
+      console.log(`Puerta en dirección 0x${direccion.toString(16).padStart(2, '0')} abierta.`);
+      await delay(3000); // Retraso de 3 segundos entre cada apertura
+    }
     // Verifica si el proceso terminó por timeout o por completarse normalmente
     if (procesoTerminado) {
       res.json({ success: true, message: 'Proceso de reclutamiento finalizado por timeout', cerraduras: cerradurasAsignadas });
@@ -284,6 +285,7 @@ app.post('/inicializacion-automatica', async (req, res) => {
       res.json({ success: true, message: 'Proceso de reclutamiento completado', cerraduras: cerradurasAsignadas });
     }
   } catch (error) {
+    await reiniciarPuertoSerie()
     console.error("Error en el proceso de reclutamiento:", error);
     res.json({ success: false, error: error.message });
   }
@@ -348,6 +350,24 @@ async function detectarPlacasConectadas() {
   } catch (error) {
     console.log("Error al enviar el comando para detectar placas CU:", error.message);
     return [];
+  }
+}
+
+// Función para reiniciar la conexión del puerto serie
+async function reiniciarPuertoSerie() {
+  try {
+    console.log("Cerrando el puerto serie...");
+    port.close(); // Cierra el puerto
+    console.log("Puerto cerrado.");
+
+    // Esperar un poco antes de volver a abrir
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    console.log("Abriendo el puerto serie nuevamente...");
+    port.open(); // Vuelve a abrir el puerto
+    console.log("Puerto abierto.");
+  } catch (error) {
+    console.error("Error al reiniciar el puerto serie:", error);
   }
 }
 
