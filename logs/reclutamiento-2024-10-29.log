@@ -1,0 +1,110 @@
+[2024-10-29T09:27:28.200Z] info: Proceso de reclutamiento iniciado, todas las puertas abiertas.
+[2024-10-29T09:27:31.224Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:27:33.319Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:27:35.334Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:27:37.368Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:27:39.393Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:27:41.445Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:27:43.463Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:27:45.476Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:27:47.486Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:27:49.511Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:27:50.536Z] info: Verificando cerradura 0x00, respuesta: 02 00 35 00 00 00 00 03 3a
+[2024-10-29T09:27:50.743Z] info: Cerradura en dirección 0x00 asignada a 0x01
+[2024-10-29T09:27:50.952Z] info: Abriendo puerta asignada 0x01
+[2024-10-29T09:27:51.964Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:27:53.983Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:27:55.997Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:27:57.009Z] info: Verificando cerradura 0x00, respuesta: 02 00 35 00 00 00 00 03 3a
+[2024-10-29T09:27:57.214Z] info: Cerradura en dirección 0x00 asignada a 0x02
+[2024-10-29T09:27:57.432Z] info: Abriendo puerta asignada 0x02
+[2024-10-29T09:27:58.443Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:00.456Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:01.473Z] info: Verificando cerradura 0x00, respuesta: 02 00 35 00 00 00 00 03 3a
+[2024-10-29T09:28:01.686Z] info: Cerradura en dirección 0x00 asignada a 0x03
+[2024-10-29T09:28:01.898Z] info: Abriendo puerta asignada 0x03
+[2024-10-29T09:28:02.910Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:04.923Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:06.944Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:08.969Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:10.978Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:12.991Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:15.021Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:17.035Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:19.048Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:21.067Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:23.093Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:25.112Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:27.125Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:29.149Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:31.159Z] info: Verificando cerradura 0x00, respuesta: Sin Respuesta
+[2024-10-29T09:28:32.166Z] warn: Tiempo global de espera superado, finalizando proceso.
+[2024-10-29T09:28:32.685Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:32.686Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:33.213Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:33.214Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:33.740Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:33.741Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:34.268Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:34.269Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:34.796Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:34.797Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:35.323Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:35.324Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:35.852Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:35.853Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:36.379Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:36.379Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:36.906Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:36.907Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:37.434Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:37.435Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:37.965Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:37.966Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:38.490Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:38.491Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:39.017Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:39.017Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:39.529Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:39.530Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:40.057Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:40.060Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:40.584Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:40.585Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:41.113Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:41.115Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:41.640Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:41.641Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:42.166Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:42.166Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:42.696Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:42.697Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:43.223Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:43.224Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:43.753Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:43.755Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:44.278Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:44.279Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:44.805Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:44.806Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:45.316Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:45.317Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:45.845Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:45.847Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:46.373Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:46.374Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:46.901Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:46.902Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:47.412Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:47.413Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:47.939Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:47.939Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:48.453Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:48.454Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:48.979Z] info: La puerta en dirección 0x01 no está cerrada.
+[2024-10-29T09:28:48.980Z] info: No todas las puertas estan cerradas
+[2024-10-29T09:28:49.539Z] info: Todas las puertas estan cerradas. Iniciando apertura...
+[2024-10-29T09:28:54.547Z] info: Puerta en dirección 0x01 abierta.
+[2024-10-29T09:28:55.057Z] info: Puerta en dirección 0x02 abierta.
+[2024-10-29T09:28:55.568Z] info: Puerta en dirección 0x03 abierta.
+[2024-10-29T09:28:56.072Z] info: Proceso de reclutamiento finalizado

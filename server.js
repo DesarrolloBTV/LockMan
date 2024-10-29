@@ -9,12 +9,32 @@
 const express = require('express');
 const { SerialPort } = require('serialport');
 const { ReadlineParser } = require('@serialport/parser-readline');
+const winston = require('winston');
+const DailyRotateFile = require('winston-daily-rotate-file');
+
+// Configuración de Winston para el logger
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.printf(({ timestamp, level, message }) => `[${timestamp}] ${level}: ${message}`)
+  ),
+  transports: [
+    new winston.transports.Console(),
+    new DailyRotateFile({
+      filename: 'logs/reclutamiento-%DATE%.log', // Usar %DATE% para crear logs diarios
+      datePattern: 'YYYY-MM-DD',       // Formato de la fecha para el nombre del archivo
+      maxSize: '20m',                  // Tamaño máximo de cada archivo de log
+      maxFiles: '14d'                  // Mantener solo los logs de los últimos 14 días
+    })
+  ]
+});
 
 // Configurar Express
 const app = express();
 const PORT = 3000;
 let ultimoDatoRecibido = null; // Variable para almacenar los últimos datos recibidos
-
+let todasPuertasCerradas = false
 // Middleware para analizar el cuerpo de las solicitudes JSON
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -75,7 +95,7 @@ function esperarRespuesta() {
       if (!datosRecibidos) {
         resolve('Sin Respuesta'); // Retorna "Sin Respuesta" si no se recibieron datos
       }
-    }, 6000); // Esperar un máximo de 7 segundos
+    }, 1000);
 
     port.on('data', (data) => {
       datosRecibidos = true; // Indica que se han recibido datos
@@ -121,12 +141,15 @@ function enviarComando(addr, cmd, addrnw) {
   return new Promise((resolve, reject) => {
     port.write(packet, (err) => {
       if (err) {
-        console.error('Error escribiendo en el puerto:', err.message);
+        //console.error('Error escribiendo en el puerto:', err.message);
+        logger.info('Error escribiendo en el puerto:', err.message);
+
         return reject(err);
       }
       // Convertir el packet a hexadecimal y agregar un espacio cada dos caracteres
       const hexString = packet.toString('hex').replace(/(.{2})/g, '$1 '); // Añadir espacio
       console.log('Comando enviado:', hexString.trim()); // Trim para quitar el espacio final
+
       resolve(hexString.trim()); // Devolver el string formateado
     });
   });
@@ -156,6 +179,7 @@ app.post('/enviar-comando', async (req, res) => {
   try {
       const datosEnviados = await enviarComando(direccion, comando,0x00); // Enviar el comando ingresado
       const datosRecibidos = await esperarMultiplesRespuestas(); // Esperar respuesta del puerto serie
+
       res.json({ success: true, response: datosRecibidos, enviado: datosEnviados });
   } catch (error) {
       res.json({ success: false, error: error.message });
@@ -216,11 +240,11 @@ app.post('/inicializacion-automatica', async (req, res) => {
   try {
     // 1. Iniciar el proceso de reclutamiento
     const comandoEnviado = await enviarComando(0xFF, 0x80, 0x00); // Usar dirección 0xFF como broadcast
-    console.log("Proceso de reclutamiento iniciado, todas las puertas abiertas.");
+    logger.info("Proceso de reclutamiento iniciado, todas las puertas abiertas.");
     await delay(2000);
 
     const cerradurasAsignadas = [];
-    let timeoutGlobal = 60000; // 20 segundos de tiempo límite global para finalizar el proceso si no se detecta el cierre de puertas
+    let timeoutGlobal = 30000; // 20 segundos de tiempo límite global para finalizar el proceso si no se detecta el cierre de puertas
     let tiempoInicioProceso = Date.now(); // Tiempo de inicio del proceso
     let procesoTerminado = false;
 
@@ -239,32 +263,32 @@ app.post('/inicializacion-automatica', async (req, res) => {
           while (!puertaCerradaDetectada && !procesoTerminado) {
             // Verificar si se ha excedido el tiempo límite global
             if (Date.now() - tiempoInicioProceso > timeoutGlobal) {
-              console.log(`Tiempo global de espera superado, finalizando proceso.`);
-              await reiniciarPuertoSerie()
+              logger.warn(`Tiempo global de espera superado, finalizando proceso.`);
+              //await reiniciarPuertoSerie()
               procesoTerminado = true;
               break;
             }
 
             // 6. Enviar comando para obtener el estado de la cerradura
-            await delay(1000); // Espera para evitar sobrecargar el sistema
             const estadoPuerta = await enviarComando(0x00, 0x30); // Enviar comando para obtener el estado
             const respuestaEstado = await esperarRespuesta();
             const estadoHexArray = respuestaEstado.trim().split(' '); // Convertir la respuesta en un array
-            console.log(`Verificando cerradura 0x00, respuesta: ${respuestaEstado}`);
+            logger.info(`Verificando cerradura 0x00, respuesta: ${respuestaEstado}`);
 
             // 7. Verificar si la cerradura está cerrada (el cuarto byte debe ser '01')
             if (estadoHexArray[3] === '00') {
               puertaCerradaDetectada = true;
-              await delay(1000);
+              await delay(200);
               tiempoInicioProceso = Date.now();  // Reiniciar el contador global
               const direccionActual = cerradurasAsignadas.length + 1; // Dirección a asignar
               // 8. Enviar comando para establecer nueva dirección
               let comandoEnviado = await enviarComando(i, 0x81, direccionActual); // Asignar la nueva dirección
               cerradurasAsignadas.push(direccionActual); // Guardar la dirección de la cerradura asignada
-              console.log(`Cerradura en dirección 0x00 asignada a 0x${direccionActual.toString(16).padStart(2, '0')}`);
-              await delay(1000)
+              logger.info(`Cerradura en dirección 0x00 asignada a 0x${direccionActual.toString(16).padStart(2, '0')}`);
+              await delay(200)
               await enviarComando(direccionActual, 0x31); 
               console.log(`Abriendo puerta asignada 0x${direccionActual.toString(16).padStart(2,'0')}`)
+              logger.info(`Abriendo puerta asignada 0x${direccionActual.toString(16).padStart(2,'0')}`);
               break; // Salir de la espera por esta cerradura
             } else {
               await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar un segundo antes de verificar nuevamente
@@ -273,25 +297,46 @@ app.post('/inicializacion-automatica', async (req, res) => {
         }
       }
     }
-    for (const direccion of cerradurasAsignadas) {
-      await enviarComando(direccion, 0x31); // Comando de apertura
-      console.log(`Puerta en dirección 0x${direccion.toString(16).padStart(2, '0')} abierta.`);
-      await delay(3000); // Retraso de 3 segundos entre cada apertura
+    while(!todasPuertasCerradas){
+      await delay(1000)
+      for (const direccion of cerradurasAsignadas) {
+        const estadoPuerta = await enviarComando(direccion, 0x30); // Enviar comando para obtener el estado
+        const respuestaEstado = await esperarRespuesta();
+        const estadoHexArray = respuestaEstado.trim().split(' '); // Convertir la respuesta en un array
+        if(estadoHexArray[3] === '01'){
+          todasPuertasCerradas = false
+          logger.info(`La puerta en dirección 0x${direccion.toString(16).padStart(2, '0')} no está cerrada.`);
+          break
+        }else{
+          todasPuertasCerradas = true
+        }
+      }
+      
+      if(todasPuertasCerradas){
+        logger.info("Todas las puertas estan cerradas. Iniciando apertura...");
+        await delay(5000)
+        for(const direccion of cerradurasAsignadas){
+          await enviarComando(direccion, 0x31); // Comando de apertura
+          logger.info(`Puerta en dirección 0x${direccion.toString(16).padStart(2, '0')} abierta.`);
+          await delay(500); // Retraso de 500 ms entre cada apertura
+        }
+      }else{
+        logger.info("No todas las puertas estan cerradas");
+
+      }
     }
     // Verifica si el proceso terminó por timeout o por completarse normalmente
     if (procesoTerminado) {
       res.json({ success: true, message: 'Proceso de reclutamiento finalizado por timeout', cerraduras: cerradurasAsignadas });
+      logger.info("Proceso de reclutamiento finalizado");
     } else {
       res.json({ success: true, message: 'Proceso de reclutamiento completado', cerraduras: cerradurasAsignadas });
     }
   } catch (error) {
-    await reiniciarPuertoSerie()
-    console.error("Error en el proceso de reclutamiento:", error);
+    logger.error(`Error en el proceso de reclutamiento: ${error.message}`);
     res.json({ success: false, error: error.message });
   }
 });
-
-
 
 app.post('/detectar-cus', async (req, res) => {
 

@@ -94,23 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
             infoComandos.textContent = '...';
         }
     }); 
-    document.getElementById('detectarCerradurasBtn').addEventListener('click', async() => {
-        respuesta.innerText = (" ");
-        try {
-            const response = await fetch('/detectar-cus', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-            
-            const data = await response.json();
-            respuesta.innerText = (`TX: ${data.message}`);
-        } catch (error) {
-            mostrarRespuesta({ success: false, error: `Error en la solicitud: ${error.message}` });
-        }
-         
-    })
+
     document.getElementById('inicializacionBtn').addEventListener('click', async() => {
         respuesta.innerText = ("Iniciando proceso...");
         try {
